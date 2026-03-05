@@ -27,7 +27,7 @@ def translate_text(text: str, target_lang_code: str, gender: str, api_key: str) 
         "source_language_code": "en-IN",
         "target_language_code": f"{target_lang_code}-IN",
         "speaker_gender": sarvam_gender,
-        "mode": "colloquial",        # Natural conversational tone for dubbing
+        "mode": "modern-colloquial",        # Natural conversational tone for dubbing
         "model": "mayura:v1",
         "enable_preprocessing": True  # Better handling of numbers, dates, abbreviations
     }
@@ -46,10 +46,11 @@ def translate_text(text: str, target_lang_code: str, gender: str, api_key: str) 
                 # Ensure we got actual content back
                 if translated and translated.strip():
                     return translated.strip()
+                print(f"[translator] WARNING: Empty translation returned for '{text[:50]}...' -> {target_lang_code}")
                 return text
             else:
                 if attempt == max_retries - 1:
-                    print(f"[translator] Translation failed for '{text[:50]}...': {response.status_code} {response.text[:100]}")
+                    print(f"[translator] Translation failed for '{text[:50]}...': {response.status_code} {response.text[:200]}")
                     return text
         except requests.exceptions.Timeout:
             if attempt == max_retries - 1:
@@ -131,56 +132,10 @@ def translate_text_with_context(
     api_key: str
 ) -> str:
     """
-    Translates text with conversational context for better semantic accuracy.
-    Uses Sarvam's native `prompt` parameter to pass surrounding dialogue 
-    so the model understands the conversational flow without actually translating 
-    the context itself into the output.
+    Translates text. 
+    Note: Sarvam API is a pure translation model, not an instruction-following LLM,
+    so adding '[Context: ...]' prefixes confuses it and gets embedded in the output.
+    We translate the exact text segment directly.
     """
-    if target_lang_code == "en":
-        return text
-
-    if not api_key:
-        return text
-
-    # For short or simple text, translate directly
-    if not context or len(text.split()) <= 3:
-        return translate_text(text, target_lang_code, gender, api_key)
-
-    sarvam_gender = "Male" if gender.lower() == "male" else "Female"
-
-    url = "https://api.sarvam.ai/translate"
-    payload = {
-        "input": text,
-        "prompt": f"Context of conversation: {context}",
-        "source_language_code": "en-IN",
-        "target_language_code": f"{target_lang_code}-IN",
-        "speaker_gender": sarvam_gender,
-        "mode": "colloquial",
-        "model": "mayura:v1",
-        "enable_preprocessing": True
-    }
-    headers = {
-        "Content-Type": "application/json",
-        "api-subscription-key": api_key
-    }
-
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=15)
-            if response.status_code == 200:
-                result = response.json()
-                translated = result.get("translated_text", "")
-                if translated and translated.strip():
-                    return translated.strip()
-                return text
-            else:
-                if attempt == max_retries - 1:
-                    print(f"[translator] Context translation failed for '{text[:50]}...': {response.status_code}")
-                    return text
-        except Exception:
-            if attempt == max_retries - 1:
-                return text
-        time.sleep(1)
-
-    return text
+    # Plain translation without context
+    return translate_text(text, target_lang_code, gender, api_key)

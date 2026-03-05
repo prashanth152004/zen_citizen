@@ -411,6 +411,7 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
         status_text.markdown(f"**🔍 Detecting source language (Whisper `{model_size}`)...**")
         source_lang_code, source_lang_name = detect_language(wav_path, model_size)
         st.info(f"🌍 **Detected source language:** {source_lang_name} ({source_lang_code})")
+        print(f"[app] Source language detected: {source_lang_name} (code={source_lang_code})")
         progress_bar.progress(15)
         
         # 3. Transcribe with Whisper (Single Pass)
@@ -432,7 +433,14 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
         # 6. Translation
         langs_str = ", ".join(target_langs)
         status_text.markdown(f"**🌐 Translating to {langs_str} (Sarvam AI)...**")
+        print(f"[app] Sarvam API key provided: {bool(sarvam_key)}")
+        if not sarvam_key and any(l in target_langs for l in ["Hindi", "Kannada"]):
+            st.error("❌ **Sarvam API Key is required** for Hindi/Kannada translation. Please enter it in the sidebar. Without it, translated audio will just be English text spoken in Hindi/Kannada voices.")
         lang_tracks_text = translate_segments(assigned_segments, target_langs, sarvam_key)
+        # Debug: print first segment of each language to verify translation
+        for lang_name, segs in lang_tracks_text.items():
+            if segs:
+                print(f"[app] {lang_name} first segment text: '{segs[0]['text'][:80]}'")
         progress_bar.progress(60)
         
         # 7. Generate TTS & Audio Tracks
@@ -442,6 +450,12 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
             if SUPPORTED_LANGUAGES.get(lang_name) == source_lang_code:
                 source_lang_match = lang_name
                 break
+        
+        print(f"[app] Source language match: {source_lang_match} (source_lang_code={source_lang_code})")
+        print(f"[app] Target languages: {target_langs}")
+        for lang_name in target_langs:
+            is_src = (lang_name == source_lang_match)
+            print(f"[app]   {lang_name}: is_source={is_src}")
         
         status_text.markdown("**🗣 Generating Voice Tracks...**")
         import wave
@@ -457,11 +471,13 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
                 if is_source:
                     # Source language: use the original speaker's voice
                     status_text.markdown(f"**🎙 Using original audio for {lang_name} (source language)...**")
+                    print(f"[app] {lang_name}: Using ORIGINAL audio (detected as source language)")
                     original_track = build_original_audio_track(wav_path, total_duration_ms, lang_name)
                     final_audio_tracks[lang_name] = original_track
                 else:
                     # Translated language: generate clean AI voice
                     status_text.markdown(f"**🗣 Synthesizing {lang_name} AI voices (Edge TTS)...**")
+                    print(f"[app] {lang_name}: Generating TTS from translated text")
                     track_segments = lang_tracks_text[lang_name]
                     tts_wav_paths = await generate_speech_for_track(
                         lang_name, track_segments, idx, is_source_language=False
@@ -483,9 +499,13 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
             srt_path = generate_srt(lang_tracks_text[lang_name], lang_name)
             srt_paths[lang_name] = srt_path
         
+        primary_srt_lang = "English" if "English" in target_langs else target_langs[0]
+        primary_srt_path = srt_paths[primary_srt_lang]
+        progress_bar.progress(85)
+        
         # 9. Merge Video (for download — multi-track)
         status_text.markdown("**🎬 Merging final multi-track video (FFmpeg)...**")
-        final_output_path = merge_video(input_video_path, final_audio_tracks, srt_paths)
+        final_output_path = merge_video(input_video_path, final_audio_tracks, primary_srt_path)
         progress_bar.progress(90)
         
         # 10. Generate per-language MP4s for the player

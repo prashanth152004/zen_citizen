@@ -68,13 +68,11 @@ def transcribe(wav_path: str, model_size: str = "base") -> list[Segment]:
         padded_wav_path = temp_wav.name
     
     try:
-        # Force translation to English. condition_on_previous_text=False prevents
-        # hallucination loops that can cause early transcription cutoffs.
+        # Force translation to English. Removing aggressive hallucination
+        # filters to ensure we don't drop large chunks of valid audio.
         result = model.transcribe(
             padded_wav_path, 
-            task="translate",
-            condition_on_previous_text=False,
-            compression_ratio_threshold=2.4
+            task="translate"
         )
     finally:
         if os.path.exists(padded_wav_path):

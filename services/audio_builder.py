@@ -78,21 +78,29 @@ def build_audio_track(segments: list, wav_paths: list[str], total_duration_ms: i
     Reconstructs the full timeline by placing each TTS audio clip at its designated start time.
     Time-compresses the clip if it exceeds the available gap to ensure lip-sync alignment.
     Applies per-segment loudness normalization and final track-level normalization.
+    Output is always 44100 Hz stereo to match build_original_audio_track and ensure
+    consistent FFmpeg merging.
     """
-    # Create a silent canvas at standard sample rate
+    # Create a silent canvas at standard sample rate — STEREO to match original audio track
     final_audio = AudioSegment.silent(duration=total_duration_ms, frame_rate=44100)
+    final_audio = final_audio.set_channels(2)  # Force stereo for consistent merging
     
     segments_placed = 0
     
     for seg, p in zip(segments, wav_paths):
         if not os.path.exists(p):
+            print(f"[audio_builder] {lang_name}: WARNING — segment file missing: {p}")
             continue
             
         clip = AudioSegment.from_wav(p)
         
         # Skip truly silent/empty clips (failed TTS)
         if clip.max == 0 or len(clip) < 50:
+            print(f"[audio_builder] {lang_name}: skipping silent/empty clip: {p}")
             continue
+        
+        # Ensure clip is stereo to match the canvas
+        clip = clip.set_frame_rate(44100).set_channels(2)
         
         # Normalize each individual clip to -16 dBFS BEFORE placing it on timeline
         # This ensures each voice segment is audible regardless of TTS output levels
@@ -148,12 +156,15 @@ def build_audio_track(segments: list, wav_paths: list[str], total_duration_ms: i
     else:
         print(f"[audio_builder] WARNING: {lang_name} track appears to be entirely silent!")
     
+    # Ensure final output is stereo
+    final_audio = final_audio.set_channels(2)
+    
     # Export as WAV
     out_path = os.path.join(OUTPUT_DIR, f"track_{lang_name}.wav")
     final_audio.export(out_path, format="wav")
     
     # Verify the output
     verify = AudioSegment.from_wav(out_path)
-    print(f"[audio_builder] {lang_name} output: {len(verify)}ms, dBFS={verify.dBFS:.1f}, max={verify.max}")
+    print(f"[audio_builder] {lang_name} output: {len(verify)}ms, dBFS={verify.dBFS:.1f}, max={verify.max}, channels={verify.channels}")
     
     return out_path
