@@ -2,11 +2,11 @@ import subprocess
 import os
 from config import OUTPUT_DIR, SUPPORTED_LANGUAGES
 
-def merge_video(original_video: str, tracks: dict[str, str], srt_path: str) -> str:
+def merge_video(original_video: str, tracks: dict[str, str], srt_paths: dict[str, str]) -> str:
     """
     Merges the original video with all newly generated audio tracks.
-    Burns in the primary language subtitles (English).
-    Sets the default audio track metadata properly.
+    Embeds all generated subtitles as soft selectable tracks in the MP4.
+    Sets the default audio & subtitle track metadata properly.
     """
     out_path = os.path.join(OUTPUT_DIR, "final_multilingual_output.mp4")
     
@@ -18,26 +18,31 @@ def merge_video(original_video: str, tracks: dict[str, str], srt_path: str) -> s
         "-i", original_video
     ]
     
-    # Add an input for each valid audio track built
     valid_tracks = list(tracks.items())
     for _, track_path in valid_tracks:
         cmd.extend(["-i", track_path])
+        
+    valid_srts = list(srt_paths.items())
+    for _, srt_path in valid_srts:
+        cmd.extend(["-i", srt_path])
         
     # Map video from first input
     cmd.extend(["-map", "0:v"])
     
     # Map audio tracks
+    audio_start_idx = 1
     for idx_offset in range(len(valid_tracks)):
-        cmd.extend(["-map", f"{idx_offset + 1}:a"])
+        cmd.extend(["-map", f"{audio_start_idx + idx_offset}:a"])
         
-    # Burn in subtitles
-    # FFmpeg subtitles filter syntax requires proper escaping of paths, especially on Windows
-    # Here on Mac, a relative path or standard absolute is usually okay, but we escape colons anyway
-    escaped_srt = srt_path.replace(":", "\\:")
-    cmd.extend(["-vf", f"subtitles='{escaped_srt}'"])
+    # Map subtitle tracks
+    srt_start_idx = 1 + len(valid_tracks)
+    for idx_offset in range(len(valid_srts)):
+        cmd.extend(["-map", f"{srt_start_idx + idx_offset}:s"])
     
-    # Set video/audio codecs
+    # Set codecs
     cmd.extend(["-c:v", "libx264"])
+    if valid_srts:
+        cmd.extend(["-c:s", "mov_text"])  # Standard subtitle codec for MP4
     
     # Set codec and bitrate for each audio stream explicitly
     for i in range(len(valid_tracks)):
@@ -49,8 +54,7 @@ def merge_video(original_video: str, tracks: dict[str, str], srt_path: str) -> s
     
     # Add metadata for each audio track
     for idx_offset, (lang_name, _) in enumerate(valid_tracks):
-        lang_code = SUPPORTED_LANGUAGES[lang_name] # e.g., 'en', 'hi', 'kn'
-        # Convert to ISO 639-2 if needed by FFmpeg, but 3-letter codes are standard (eng, hin, kan)
+        lang_code = SUPPORTED_LANGUAGES[lang_name]
         code_map = {"en": "eng", "hi": "hin", "kn": "kan"}
         iso_code = code_map.get(lang_code, "eng")
         
@@ -64,6 +68,23 @@ def merge_video(original_video: str, tracks: dict[str, str], srt_path: str) -> s
             cmd.extend([f"-disposition:a:{idx_offset}", "default"])
         else:
             cmd.extend([f"-disposition:a:{idx_offset}", "0"])
+            
+    # Add metadata for each subtitle track
+    for idx_offset, (lang_name, _) in enumerate(valid_srts):
+        lang_code = SUPPORTED_LANGUAGES[lang_name]
+        code_map = {"en": "eng", "hi": "hin", "kn": "kan"}
+        iso_code = code_map.get(lang_code, "eng")
+        
+        cmd.extend([
+            f"-metadata:s:s:{idx_offset}", f"language={iso_code}",
+            f"-metadata:s:s:{idx_offset}", f"title={lang_name}"
+        ])
+        
+        # Only set English subs as default, others inactive by default
+        if lang_name == "English":
+            cmd.extend([f"-disposition:s:{idx_offset}", "default"])
+        else:
+            cmd.extend([f"-disposition:s:{idx_offset}", "0"])
             
     cmd.append(out_path)
     

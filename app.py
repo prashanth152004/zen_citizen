@@ -483,13 +483,9 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
             srt_path = generate_srt(lang_tracks_text[lang_name], lang_name)
             srt_paths[lang_name] = srt_path
         
-        primary_srt_lang = "English" if "English" in target_langs else target_langs[0]
-        primary_srt_path = srt_paths[primary_srt_lang]
-        progress_bar.progress(85)
-        
         # 9. Merge Video (for download — multi-track)
         status_text.markdown("**🎬 Merging final multi-track video (FFmpeg)...**")
-        final_output_path = merge_video(input_video_path, final_audio_tracks, primary_srt_path)
+        final_output_path = merge_video(input_video_path, final_audio_tracks, srt_paths)
         progress_bar.progress(90)
         
         # 10. Generate per-language MP4s for the player
