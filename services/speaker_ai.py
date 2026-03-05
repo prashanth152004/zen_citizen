@@ -75,31 +75,15 @@ def assign_speakers(transcription_segments: list, diarization_segments: list) ->
             )
         )
         
-    # --- Segment Merging Phase ---
-    # Merge consecutive short segments from the same speaker if the gap
-    # between them is less than 1.0 seconds. 
-    # This prevents the TTS from generating robotic, sentence-by-sentence fragments
-    # but we must use a small gap (0.4s) to avoid merging distinct sentences.
+    # --- Segment Merging Phase Removed ---
+    # We no longer merge consecutive segments. Keeping them strictly separated 
+    # guarantees that the generated audio will correspond directly to the exact
+    # visual timeframe of the original speech, enabling frame-perfect lip-sync.
     if not assigned:
         return []
-        
-    merged_assigned = [assigned[0]]
-    for current in assigned[1:]:
-        previous = merged_assigned[-1]
-        
-        # Merge if gap is < 0.4s and text isn't getting absurdly long
-        gap = current.start - previous.end
-        long_text = len(previous.text) + len(current.text) > 300
-        
-        if current.speaker_id == previous.speaker_id and gap < 0.4 and not long_text:
-            # Combine text and extend duration
-            previous.text = f"{previous.text.strip()} {current.text.strip()}".strip()
-            previous.end = max(previous.end, current.end)
-        else:
-            merged_assigned.append(current)
             
-    print(f"[speaker_ai] Merged raw fragments: {len(assigned)} -> {len(merged_assigned)} logical sentences")
-    return merged_assigned
+    print(f"[speaker_ai] Kept raw fragments: {len(assigned)} for precise lip-sync")
+    return assigned
 
 def detect_gender(wav_path: str, assigned_segments: list[SpeakerSegment]) -> dict[str, str]:
     """
@@ -149,12 +133,19 @@ def detect_gender(wav_path: str, assigned_segments: list[SpeakerSegment]) -> dic
         
         if all_pitches:
             combined = torch.cat(all_pitches)
-            median_pitch = torch.median(combined).item()
             
-            if median_pitch < 165.0:
+            # Use the 25th percentile instead of median to ignore high-frequency noise spikes
+            # from background music or artifacts, isolating the true vocal fundamental.
+            sorted_pitches = torch.sort(combined).values
+            percentile_index = int(len(sorted_pitches) * 0.25)
+            percentile_pitch = sorted_pitches[percentile_index].item()
+            
+            # 150Hz is a more robust divider: male voices are typically 85-155Hz, females 165-255Hz
+            if percentile_pitch < 150.0:
                 speaker_gender_map[spk] = "male"
             else:
                 speaker_gender_map[spk] = "female"
+            print(f"[speaker_ai] {spk} gender detected: {speaker_gender_map[spk]} (25th percentile F0: {percentile_pitch:.1f}Hz)")
         else:
             # Default fallback if no voiced frames found
             speaker_gender_map[spk] = "male"

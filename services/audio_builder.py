@@ -114,20 +114,27 @@ def build_audio_track(segments: list, wav_paths: list[str], total_duration_ms: i
         end_ms = int(seg["end"] * 1000)
         target_duration = end_ms - start_ms
         
-        # Time-stretch for dubbing alignment using studio-quality FFmpeg `atempo`:
-        # This perfectly aligns the TTS audio to the video's lip movements
-        # while preserving natural pitch (no chipmunk effect).
-        if target_duration > 0 and len(clip) > target_duration * 1.05:
+        # Time-stretch for perfect dubbing alignment using studio-quality FFmpeg `atempo`.
+        # We aggressively stretch or compress the TTS audio to fit the exact millisecond 
+        # duration of the original visual segment, ensuring frame-perfect lip-sync.
+        if target_duration > 0:
             speed_ratio = len(clip) / target_duration
             
-            if speed_ratio <= 1.5:
-                clip = _stretch_audio_with_ffmpeg(clip, speed_ratio)
-            else:
-                # Too much speedup needed — cap stretch at 1.5x and fade-trim the rest
-                # to maintain clarity and avoid unintelligible rapid-fire speech.
-                clip = _stretch_audio_with_ffmpeg(clip, 1.5)
-                if len(clip) > target_duration:
-                    clip = clip[:target_duration].fade_out(50)
+            # If the clip length differs by more than 2% from target, stretch/compress it
+            if speed_ratio > 1.02 or speed_ratio < 0.98:
+                # Cap stretching to avoid extreme distortion
+                safe_ratio = max(0.75, min(1.5, speed_ratio))
+                clip = _stretch_audio_with_ffmpeg(clip, safe_ratio)
+            
+            # Force exact match: trim or pad to hit the target duration precisely
+            if len(clip) > target_duration:
+                # Fade out the very end if we have to truncate to avoid clipping clicks
+                clip = clip[:target_duration].fade_out(20)
+            elif len(clip) < target_duration:
+                # Pad with silence if it's slightly too short, ensuring the next 
+                # segment starts at precisely the right visual time.
+                pad = AudioSegment.silent(duration=target_duration - len(clip), frame_rate=clip.frame_rate)
+                clip = clip + pad
         
         # Clamp start position
         if start_ms < 0:

@@ -66,13 +66,17 @@ def transcribe(wav_path: str, model_size: str = "base") -> list[Segment]:
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
         audio.export(temp_wav.name, format="wav")
         padded_wav_path = temp_wav.name
-    
     try:
-        # Force translation to English. Removing aggressive hallucination
-        # filters to ensure we don't drop large chunks of valid audio.
+        # Force translation to English.
+        # We use condition_on_previous_text=False and no_speech_threshold
+        # to prevent severe hallucinations (e.g. generating Chinese/Greek text
+        # during background noise) but keep compression_ratio off so we don't
+        # accidentally drop large chunks of valid translated speech.
         result = model.transcribe(
             padded_wav_path, 
-            task="translate"
+            task="translate",
+            condition_on_previous_text=False,
+            no_speech_threshold=0.6
         )
     finally:
         if os.path.exists(padded_wav_path):

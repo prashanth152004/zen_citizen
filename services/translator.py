@@ -27,7 +27,7 @@ def translate_text(text: str, target_lang_code: str, gender: str, api_key: str) 
         "source_language_code": "en-IN",
         "target_language_code": f"{target_lang_code}-IN",
         "speaker_gender": sarvam_gender,
-        "mode": "modern-colloquial",        # Natural conversational tone for dubbing
+        "mode": "formal",        # Pure translation, no code-mixing/loan words
         "model": "mayura:v1",
         "enable_preprocessing": True  # Better handling of numbers, dates, abbreviations
     }
