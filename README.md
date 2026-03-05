@@ -1,6 +1,6 @@
 # 🎬 AI Video Translator
 
-A production-grade web application built with Streamlit that automatically translates videos into multiple languages with Netflix-style audio and subtitle selection. The system preserves speaker identity, matches gender-appropriate voices, and perfectly syncs the translated audio back to the original video timeline.
+A production-grade web application built with Streamlit that automatically translates videos into multiple languages with Documentary Voice Overlay Style audio and subtitle selection. The system preserves speaker identity, matches gender-appropriate voices, and perfectly syncs the translated audio back to the original video timeline.
 
 ## ✨ Features
 
@@ -12,7 +12,7 @@ A production-grade web application built with Streamlit that automatically trans
   - Generates natural speech using Microsoft Edge TTS.
   - Automatically speeds up translated audio to perfectly fit within the original speaker's time slot.
   - Performs intelligent audio ducking and EQ (mid-range scoop) so ambient/background languages (like Kannada) sit perfectly behind the primary audio.
-- **Netflix-Style Video Player:** A custom HTML5 player built directly into Streamlit that allows you to instantly switch between language tracks (English, Hindi, Kannada) and toggle subtitles without reloading the page.
+- **Documentary Voice Overlay Style Video Player:** A custom HTML5 player built directly into Streamlit that allows you to instantly switch between language tracks (English, Hindi, Kannada) and toggle subtitles without reloading the page.
 
 ## 🛠 Technology Stack
 
@@ -58,7 +58,7 @@ streamlit run app.py
 2. Enter your **Hugging Face Token** and **Sarvam API Key** in the sidebar.
 3. Upload an MP4 video file.
 4. Click **Translate & Build Video**.
-5. Once processing is complete, use the **Netflix-Style Video Player** to watch your video. Hover over the player and click the settings gear (⚙️) to switch audio languages and subtitles in real-time.
+5. Once processing is complete, use the **Documentary Voice Overlay Style Video Player** to watch your video. Hover over the player and click the settings gear (⚙️) to switch audio languages and subtitles in real-time.
 
 ## 📁 Project Structure
 
@@ -69,7 +69,7 @@ streamlit run app.py
 └── services/
     ├── audio_builder.py        # Compiles and normalizes TTS clips onto timeline
     ├── audio_extractor.py      # Extracts raw audio via FFmpeg
-    ├── player_ui.py            # Local HTTP server and custom Netflix-style HTML5 player
+    ├── player_ui.py            # Local HTTP server and custom Documentary Voice Overlay Style HTML5 player
     ├── speaker_ai.py           # Pyannote diarization and librosa gender detection
     ├── subtitle_generator.py   # Generates precise SRT subtitle files
     ├── transcriber.py          # Whisper transcription

@@ -287,7 +287,7 @@ st.sidebar.markdown("""
 # ──────────────────────────────────────────
 
 st.markdown('<div class="hero-title">🎬 AI Video Translator</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-subtitle">Netflix-style multi-language audio & subtitles — powered by AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-subtitle">Documentary Voice Overlay Style multi-language audio & subtitles — powered by AI</div>', unsafe_allow_html=True)
 
 # How it works section
 with st.expander("🔍 How It Works — Full Pipeline Explained", expanded=False):
@@ -348,7 +348,7 @@ with st.expander("🔍 How It Works — Full Pipeline Explained", expanded=False
         <div class="tech-card">
             <h4>🎬 Step 6 — Final Merge & Player</h4>
             <p>FFmpeg combines the original video with all audio tracks and burns in English subtitles. 
-            The custom <strong>Netflix-style player</strong> lets you switch audio language and subtitles 
+            The custom <strong>Documentary Voice Overlay player</strong> lets you switch audio language and subtitles 
             in real-time — right inside the browser.</p>
             <span class="tech-badge">FFmpeg</span>
             <span class="tech-badge">Multi-Audio MP4</span>
@@ -493,7 +493,7 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
         progress_bar.progress(90)
         
         # 10. Generate per-language MP4s for the player
-        status_text.markdown("**🎬 Generating per-language videos for Netflix player...**")
+        status_text.markdown("**🎬 Generating per-language videos for AI Voice Overlay player...**")
         per_lang_videos = generate_per_language_videos(input_video_path, final_audio_tracks)
         progress_bar.progress(100)
         
@@ -505,7 +505,7 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
         
         # Netflix-Style Player
         st.markdown("---")
-        st.subheader("🎬 Netflix-Style Video Player")
+        st.subheader("🎬 AI Voice Overlay Video Player")
         st.caption("Hover over the player and click ⚙️ at the bottom-right to switch audio language and subtitles.")
         netflix_player(per_lang_videos, srt_paths, OUTPUT_DIR)
         

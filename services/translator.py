@@ -132,9 +132,9 @@ def translate_text_with_context(
 ) -> str:
     """
     Translates text with conversational context for better semantic accuracy.
-    If context is available, prepends it as a hint to improve coherence,
-    then extracts only the translated target segment.
-    Falls back to plain translation if context-based approach returns unexpected results.
+    Uses Sarvam's native `prompt` parameter to pass surrounding dialogue 
+    so the model understands the conversational flow without actually translating 
+    the context itself into the output.
     """
     if target_lang_code == "en":
         return text
@@ -142,21 +142,16 @@ def translate_text_with_context(
     if not api_key:
         return text
 
-    # For short or simple text, translate directly without context overhead
+    # For short or simple text, translate directly
     if not context or len(text.split()) <= 3:
         return translate_text(text, target_lang_code, gender, api_key)
-
-    # Try translating with context embedded as a hint
-    # Format: "[Context: ...] Actual text to translate"
-    # Then extract just the translated main text
-    context_hint = f"[Previous/next dialogue: {context[:150]}] "
-    full_input = context_hint + text
 
     sarvam_gender = "Male" if gender.lower() == "male" else "Female"
 
     url = "https://api.sarvam.ai/translate"
     payload = {
-        "input": full_input,
+        "input": text,
+        "prompt": f"Context of conversation: {context}",
         "source_language_code": "en-IN",
         "target_language_code": f"{target_lang_code}-IN",
         "speaker_gender": sarvam_gender,
@@ -169,21 +164,23 @@ def translate_text_with_context(
         "api-subscription-key": api_key
     }
 
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=15)
-        if response.status_code == 200:
-            result = response.json()
-            translated = result.get("translated_text", "")
-            if translated and translated.strip():
-                # The context-aware translation may include the context prefix translated too.
-                # If the result is significantly longer than expected, fall back to plain translation.
-                plain = translate_text(text, target_lang_code, gender, api_key)
-                # Use context translation only if it's a reasonable length (not bloated by context)
-                if len(translated) <= len(plain) * 2.5:
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=15)
+            if response.status_code == 200:
+                result = response.json()
+                translated = result.get("translated_text", "")
+                if translated and translated.strip():
                     return translated.strip()
-                return plain
-    except Exception:
-        pass
+                return text
+            else:
+                if attempt == max_retries - 1:
+                    print(f"[translator] Context translation failed for '{text[:50]}...': {response.status_code}")
+                    return text
+        except Exception:
+            if attempt == max_retries - 1:
+                return text
+        time.sleep(1)
 
-    # Fallback: plain translation without context
-    return translate_text(text, target_lang_code, gender, api_key)
+    return text
