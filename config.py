@@ -56,15 +56,9 @@ VOICE_MAP = {
 }
 
 # Audio tuning constants
-# Main English voice: keep clear and present
+# All voice tracks normalized to this level
 LUFS_MAIN = -14.0
-# Kannada voice: sit in the background
-LUFS_BACKGROUND = -21.0
 
-# EQ cut for background voices to sit "behind"
-EQ_HIGHPASS_FREQ = 300 
-EQ_LOWPASS_FREQ = 3000
-
-# Keep English voice slightly slower than normal speech
-ENGLISH_SPEECH_RATE = "-10%"
+# Label used when keeping original audio for the source language
+SOURCE_LANGUAGE_LABEL = "Source (Original)"
 

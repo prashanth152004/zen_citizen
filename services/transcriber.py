@@ -1,4 +1,8 @@
 import whisper
+import numpy as np
+import os
+import tempfile
+from pydub import AudioSegment
 from dataclasses import dataclass
 
 @dataclass
@@ -7,18 +11,78 @@ class Segment:
     end: float
     text: str
 
+
+def detect_language(wav_path: str, model_size: str = "base") -> tuple[str, str]:
+    """
+    Detects the spoken language in the audio using Whisper's language detection.
+    Loads 30 seconds of audio and runs the language identification head.
+    Returns: (language_code, language_name)  e.g. ("kn", "Kannada")
+    """
+    model = whisper.load_model(model_size, device="cpu")
+
+    # Load and pad/trim to 30 seconds (Whisper's standard window)
+    audio = whisper.load_audio(wav_path)
+    audio = whisper.pad_or_trim(audio)
+
+    mel = whisper.log_mel_spectrogram(audio).to(model.device)
+    _, probs = model.detect_language(mel)
+
+    detected_code = max(probs, key=probs.get)
+
+    # Map common codes to readable names
+    CODE_TO_NAME = {
+        "en": "English",
+        "hi": "Hindi",
+        "kn": "Kannada",
+        "ta": "Tamil",
+        "te": "Telugu",
+        "ml": "Malayalam",
+        "mr": "Marathi",
+        "bn": "Bengali",
+        "gu": "Gujarati",
+        "pa": "Punjabi",
+        "ur": "Urdu",
+    }
+    detected_name = CODE_TO_NAME.get(detected_code, detected_code.upper())
+
+    print(f"[transcriber] Detected source language: {detected_name} ({detected_code}), confidence: {probs[detected_code]:.2%}")
+    return detected_code, detected_name
+
 def transcribe(wav_path: str, model_size: str = "base") -> list[Segment]:
     """
     Transcribes the full audio using OpenAI Whisper (single-pass).
+    Pads the audio with 1 second of silence to ensure the final words are captured.
     Forces the task to 'translate' so that non-English audio (like Kannada)
     is automatically translated to English text first.
     Returns a list of transcribed Segments with exact timestamps.
     """
     model = whisper.load_model(model_size, device="cpu")
     
-    # Force translation to English. This assumes the output goal is English-centric 
-    # before further translation (e.g., Kannada -> English -> Hindi).
-    result = model.transcribe(wav_path, task="translate")
+    # Pad audio with 1 second of silence at the end to prevent Whisper
+    # from cutting off the final words of the video abruptly.
+    audio = AudioSegment.from_wav(wav_path)
+    audio = audio + AudioSegment.silent(duration=1000)
+    
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
+        audio.export(temp_wav.name, format="wav")
+        padded_wav_path = temp_wav.name
+    
+    try:
+        # Force translation to English. condition_on_previous_text=False prevents
+        # hallucination loops that can cause early transcription cutoffs.
+        result = model.transcribe(
+            padded_wav_path, 
+            task="translate",
+            condition_on_previous_text=False,
+            compression_ratio_threshold=2.4
+        )
+    finally:
+        if os.path.exists(padded_wav_path):
+            try:
+                os.remove(padded_wav_path)
+            except Exception:
+                pass
+    
     
     segments = []
     for seg in result["segments"]:

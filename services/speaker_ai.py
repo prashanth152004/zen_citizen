@@ -75,7 +75,30 @@ def assign_speakers(transcription_segments: list, diarization_segments: list) ->
             )
         )
         
-    return assigned
+    # --- Segment Merging Phase ---
+    # Merge consecutive short segments from the same speaker if the gap
+    # between them is less than 1.0 seconds. 
+    # This prevents the TTS from generating robotic, sentence-by-sentence fragments
+    # and instead allows it to synthesize complete, natural-sounding dialogue 
+    # with human-like prosody and conversational pacing.
+    if not assigned:
+        return []
+        
+    merged_assigned = [assigned[0]]
+    for current in assigned[1:]:
+        previous = merged_assigned[-1]
+        
+        # If same speaker and gap is sufficiently small, merge them into a single thought
+        gap = current.start - previous.end
+        if current.speaker_id == previous.speaker_id and gap < 1.1:
+            # Combine text and extend duration
+            previous.text = f"{previous.text.strip()} {current.text.strip()}".strip()
+            previous.end = max(previous.end, current.end)
+        else:
+            merged_assigned.append(current)
+            
+    print(f"[speaker_ai] Merged raw fragments: {len(assigned)} -> {len(merged_assigned)} natural sentences")
+    return merged_assigned
 
 def detect_gender(wav_path: str, assigned_segments: list[SpeakerSegment]) -> dict[str, str]:
     """

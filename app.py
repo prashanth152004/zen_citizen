@@ -5,11 +5,11 @@ from config import TEMP_DIR, OUTPUT_DIR, SUPPORTED_LANGUAGES
 
 # Import our services
 from services.audio_extractor import extract_audio
-from services.transcriber import transcribe
+from services.transcriber import transcribe, detect_language
 from services.speaker_ai import diarize, assign_speakers, detect_gender
 from services.translator import translate_segments
 from services.tts_engine import generate_speech_for_track, reset_voice_cache
-from services.audio_builder import build_audio_track
+from services.audio_builder import build_audio_track, build_original_audio_track
 from services.subtitle_generator import generate_srt
 from services.video_merger import merge_video, generate_per_language_videos
 from services.player_ui import netflix_player
@@ -29,47 +29,55 @@ st.markdown("""
     
     .stApp {
         font-family: 'Inter', sans-serif;
+        background-color: #f8f9fc !important;
+        color: #1e293b !important;
+    }
+    
+    /* Force light text globally */
+    .stApp, .stApp p, .stApp span, .stApp li, .stApp div {
+        color: #1e293b;
     }
     
     /* Hero header styling */
     .hero-title {
         font-size: 2.6rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #a855f7 0%, #06b6d4 40%, #f59e0b 100%);
+        background: linear-gradient(135deg, #7c3aed 0%, #0891b2 40%, #d97706 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.2rem;
         letter-spacing: -0.5px;
     }
     .hero-subtitle {
-        color: #94a3b8;
+        color: #64748b;
         font-size: 1.08rem;
         margin-bottom: 1.5rem;
         letter-spacing: 0.2px;
     }
     
-    /* Info cards with glow border */
+    /* Info cards — light theme */
     .tech-card {
-        background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-        border: 1px solid rgba(168, 85, 247, 0.25);
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 14px;
         padding: 20px;
         margin-bottom: 14px;
-        color: #e2e8f0;
+        color: #334155;
         transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .tech-card:hover {
-        border-color: rgba(6, 182, 212, 0.5);
-        box-shadow: 0 0 20px rgba(6, 182, 212, 0.08);
+        border-color: #7c3aed;
+        box-shadow: 0 4px 16px rgba(124, 58, 237, 0.10);
     }
     .tech-card h4 {
-        color: #fff;
+        color: #0f172a;
         margin: 0 0 8px 0;
         font-size: 1rem;
         font-weight: 600;
     }
     .tech-card p {
-        color: #94a3b8;
+        color: #475569;
         font-size: 0.85rem;
         margin: 0;
         line-height: 1.6;
@@ -84,38 +92,39 @@ st.markdown("""
         margin-top: 10px;
     }
     .tech-badge:nth-child(3n+1) {
-        background: rgba(168, 85, 247, 0.15);
-        color: #c084fc;
+        background: rgba(124, 58, 237, 0.10);
+        color: #7c3aed;
     }
     .tech-badge:nth-child(3n+2) {
-        background: rgba(6, 182, 212, 0.15);
-        color: #22d3ee;
+        background: rgba(8, 145, 178, 0.10);
+        color: #0891b2;
     }
     .tech-badge:nth-child(3n) {
-        background: rgba(245, 158, 11, 0.15);
-        color: #fbbf24;
+        background: rgba(217, 119, 6, 0.10);
+        color: #d97706;
     }
     
     /* Pipeline stages */
     .pipeline-step {
-        background: #0f172a;
-        border-left: 3px solid #a855f7;
+        background: #ffffff;
+        border-left: 3px solid #7c3aed;
         padding: 10px 16px;
         margin: 6px 0;
         border-radius: 0 8px 8px 0;
         font-size: 0.9rem;
+        color: #334155;
     }
     .pipeline-step strong {
-        color: #c084fc;
+        color: #7c3aed;
     }
     
-    /* Sidebar */
+    /* Sidebar — light theme */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0c0a1d 0%, #1e1b4b 50%, #0f172a 100%);
-        border-right: 1px solid rgba(168, 85, 247, 0.15);
+        background: linear-gradient(180deg, #f1f5f9 0%, #e8e0f0 50%, #f1f5f9 100%) !important;
+        border-right: 1px solid #e2e8f0;
     }
     section[data-testid="stSidebar"] .stMarkdown h3 {
-        background: linear-gradient(90deg, #a855f7, #06b6d4);
+        background: linear-gradient(90deg, #7c3aed, #0891b2);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-size: 0.85rem;
@@ -123,21 +132,28 @@ st.markdown("""
         text-transform: uppercase;
         font-weight: 700;
     }
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] div {
+        color: #334155 !important;
+    }
     
     /* Upload area */
     .stFileUploader > div {
-        border: 2px dashed rgba(168, 85, 247, 0.3);
+        border: 2px dashed #c4b5fd;
         border-radius: 14px;
         transition: border-color 0.3s;
+        background: #ffffff;
     }
     .stFileUploader > div:hover {
-        border-color: rgba(6, 182, 212, 0.5);
+        border-color: #7c3aed;
     }
     
-    /* Primary button glow */
+    /* Primary button */
     .stButton > button[kind="primary"],
     button[data-testid="stBaseButton-primary"] {
-        background: linear-gradient(135deg, #7c3aed, #a855f7, #06b6d4) !important;
+        background: linear-gradient(135deg, #7c3aed, #a855f7, #0891b2) !important;
         border: none !important;
         color: #fff !important;
         font-weight: 600 !important;
@@ -146,52 +162,59 @@ st.markdown("""
     }
     .stButton > button[kind="primary"]:hover,
     button[data-testid="stBaseButton-primary"]:hover {
-        box-shadow: 0 0 24px rgba(168, 85, 247, 0.35) !important;
+        box-shadow: 0 0 24px rgba(124, 58, 237, 0.30) !important;
         transform: translateY(-1px) !important;
     }
     
     /* Download buttons */
     .stDownloadButton > button {
-        background: linear-gradient(135deg, #1e1b4b, #0f172a) !important;
-        border: 1px solid rgba(168, 85, 247, 0.3) !important;
-        color: #c084fc !important;
+        background: #ffffff !important;
+        border: 1px solid #c4b5fd !important;
+        color: #7c3aed !important;
         font-weight: 500 !important;
         transition: all 0.25s ease !important;
     }
     .stDownloadButton > button:hover {
-        border-color: #a855f7 !important;
-        box-shadow: 0 0 16px rgba(168, 85, 247, 0.2) !important;
-        color: #e9d5ff !important;
+        border-color: #7c3aed !important;
+        box-shadow: 0 0 12px rgba(124, 58, 237, 0.15) !important;
+        background: #f5f3ff !important;
     }
     
     /* Metrics */
     div[data-testid="stMetric"] {
-        background: linear-gradient(145deg, #1e1b4b, #0f172a);
-        border: 1px solid rgba(168, 85, 247, 0.15);
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 12px;
         padding: 12px 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     div[data-testid="stMetric"] label {
-        color: #94a3b8 !important;
+        color: #64748b !important;
     }
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #22d3ee !important;
+        color: #0891b2 !important;
     }
     
     /* Progress bar */
     .stProgress > div > div {
-        background: linear-gradient(90deg, #7c3aed, #a855f7, #06b6d4) !important;
+        background: linear-gradient(90deg, #7c3aed, #a855f7, #0891b2) !important;
     }
     
     /* Expander */
     details {
-        border: 1px solid rgba(168, 85, 247, 0.15) !important;
+        border: 1px solid #e2e8f0 !important;
         border-radius: 12px !important;
+        background: #ffffff;
     }
     
     /* Dividers */
     hr {
-        border-color: rgba(168, 85, 247, 0.12) !important;
+        border-color: #e2e8f0 !important;
+    }
+    
+    /* Table text */
+    .stApp table, .stApp th, .stApp td {
+        color: #334155 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -203,12 +226,12 @@ st.markdown("""
 st.sidebar.markdown("### 🔐 API Credentials")
 
 st.sidebar.markdown("""
-<div style="background: linear-gradient(145deg, #1e1b4b, #0f172a); border: 1px solid rgba(168,85,247,0.2); padding: 14px; border-radius: 12px; margin-bottom: 16px;">
-    <p style="color: #94a3b8; font-size: 0.8rem; margin: 0; line-height: 1.7;">
-        <strong style="color: #c084fc;">🤗 Hugging Face</strong> — Speaker diarization. 
-        <a href="https://huggingface.co/settings/tokens" target="_blank" style="color: #22d3ee;">Get token →</a><br>
-        <strong style="color: #fbbf24;">🔑 Sarvam AI</strong> — Hindi & Kannada translation. 
-        <a href="https://www.sarvam.ai/" target="_blank" style="color: #22d3ee;">Get API key →</a>
+<div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 14px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+    <p style="color: #475569; font-size: 0.8rem; margin: 0; line-height: 1.7;">
+        <strong style="color: #7c3aed;">🤗 Hugging Face</strong> — Speaker diarization. 
+        <a href="https://huggingface.co/settings/tokens" target="_blank" style="color: #0891b2;">Get token →</a><br>
+        <strong style="color: #d97706;">🔑 Sarvam AI</strong> — Hindi & Kannada translation. 
+        <a href="https://www.sarvam.ai/" target="_blank" style="color: #0891b2;">Get API key →</a>
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -384,6 +407,12 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
         wav_path = extract_audio(input_video_path)
         progress_bar.progress(10)
         
+        # 2b. Detect Source Language
+        status_text.markdown(f"**🔍 Detecting source language (Whisper `{model_size}`)...**")
+        source_lang_code, source_lang_name = detect_language(wav_path, model_size)
+        st.info(f"🌍 **Detected source language:** {source_lang_name} ({source_lang_code})")
+        progress_bar.progress(15)
+        
         # 3. Transcribe with Whisper (Single Pass)
         status_text.markdown(f"**🎙 Transcribing full audio (Whisper `{model_size}` model)...**")
         transcription_segments = transcribe(wav_path, model_size)
@@ -407,7 +436,14 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
         progress_bar.progress(60)
         
         # 7. Generate TTS & Audio Tracks
-        status_text.markdown("**🗣 Generating Voice Tracks (Microsoft Edge TTS)...**")
+        # Determine which selected language matches the source
+        source_lang_match = None
+        for lang_name in target_langs:
+            if SUPPORTED_LANGUAGES.get(lang_name) == source_lang_code:
+                source_lang_match = lang_name
+                break
+        
+        status_text.markdown("**🗣 Generating Voice Tracks...**")
         import wave
         with wave.open(wav_path, "r") as wf:
             total_duration_ms = int((wf.getnframes() / wf.getframerate()) * 1000)
@@ -416,13 +452,26 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
         
         async def build_all_tts():
             for idx, lang_name in enumerate(target_langs):
-                status_text.markdown(f"**🗣 Synthesizing {lang_name} voices (Edge TTS)...**")
-                track_segments = lang_tracks_text[lang_name]
-                wav_paths = await generate_speech_for_track(lang_name, track_segments, idx)
+                is_source = (lang_name == source_lang_match)
                 
-                status_text.markdown(f"**🎚 Mixing & leveling {lang_name} audio track...**")
-                final_track_path = build_audio_track(track_segments, wav_paths, total_duration_ms, lang_name)
-                final_audio_tracks[lang_name] = final_track_path
+                if is_source:
+                    # Source language: use the original speaker's voice
+                    status_text.markdown(f"**🎙 Using original audio for {lang_name} (source language)...**")
+                    original_track = build_original_audio_track(wav_path, total_duration_ms, lang_name)
+                    final_audio_tracks[lang_name] = original_track
+                else:
+                    # Translated language: generate clean AI voice
+                    status_text.markdown(f"**🗣 Synthesizing {lang_name} AI voices (Edge TTS)...**")
+                    track_segments = lang_tracks_text[lang_name]
+                    tts_wav_paths = await generate_speech_for_track(
+                        lang_name, track_segments, idx, is_source_language=False
+                    )
+                    
+                    status_text.markdown(f"**🎚 Mixing & leveling {lang_name} audio track...**")
+                    final_track_path = build_audio_track(
+                        track_segments, tts_wav_paths, total_duration_ms, lang_name
+                    )
+                    final_audio_tracks[lang_name] = final_track_path
                 
         asyncio.run(build_all_tts())
         progress_bar.progress(80)
