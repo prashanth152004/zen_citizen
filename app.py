@@ -517,7 +517,6 @@ if st.button("🚀 Translate & Build Video", type="primary", use_container_width
         
         # ── Results ──
         st.success("🎉 Translation and render successful!")
-        st.balloons()
         
         # Netflix-Style Player
         st.markdown("---")
